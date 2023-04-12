@@ -1,0 +1,12 @@
+## This is a template file, thus it is not meant to be used as is.
+##
+## Please use the instantiate script to:
+##  - replace references (surrounded by '<' and '>') by the expected values
+##  - delete ALL comments
+##  - rename the file by removing the .template suffix
+{
+    "project_env": "pd",
+    "project": "<project_prefix>-pd",
+    "exchange_token_api": "https://api.loreal.net/global/it4it/btdp-exchangetoken/v1/tokens",
+    "apigee_sa": "btdp-sa-apigee-pd@itg-btdpsecurity-gbl-ww-pd.iam.gserviceaccount.com"
+}

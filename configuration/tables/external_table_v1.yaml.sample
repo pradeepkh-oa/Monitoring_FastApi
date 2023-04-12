@@ -1,0 +1,29 @@
+# Example of a configuration of an external table backed by a Google Sheet
+table_id: my_external_table # Name of the table, becomes <table_id>_<version> when deployed.
+dataset_id: sampledataset # Name of the dataset file to create the table into.
+description: Example of an external table
+version: 1 # Version of the table, important to avoid overwriting previous versions of the table.
+external_data_configuration:
+  source_format: GOOGLE_SHEETS
+  google_sheets_options:
+    range: "A1:E10" # range of rows/columns to read from, if missing all the sheet is read
+    skip_leading_rows: 1 # Number of rows skipped when reading
+  source_uris:
+    - https://docs.google.com/spreadsheets/d/<sheet_id> # Google Sheet URL
+#  source_uris: # if the spreadsheet change depending on the environment
+#    dv:
+#      - https://docs.google.com/spreadsheets/d/<sheet_id>
+#    qa:
+#      - https://docs.google.com/spreadsheets/d/<sheet_id>
+#    np:
+#      - https://docs.google.com/spreadsheets/d/<sheet_id>
+#    pd:
+#      - https://docs.google.com/spreadsheets/d/<sheet_id>
+
+  schema: # Schema of the table
+    - name: id
+      type: STRING
+      mode: NULLABLE
+    - name: whatever
+      type: STRING
+      mode: NULLABLE

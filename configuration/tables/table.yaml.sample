@@ -1,0 +1,30 @@
+# This sample creates a table in the "datasetprv" dataset.
+# This sample requires the following resources to be deploy:
+# - dataset "datasetprv"
+table_id: table # Name of the table, becomes <table_id>_<version> when deployed.
+dataset_id: datasetprv # Name of the dataset file to create the table into.
+description: Example of time partitioned table
+version: 1 # Version of the table, important to avoid overwriting previous versions of the table.
+time_partitioning: # Time partitioning configuration.
+  type: "DAY"
+  field: "event_time"
+schema: # Schema of the table.
+- mode: REQUIRED
+  name: id
+  type: INTEGER
+- mode: REQUIRED
+  name: name
+  type: STRING
+- mode: REQUIRED
+  name: role
+  type: STRING
+- mode: REQUIRED
+  name: event_time
+  type: TIMESTAMP
+- mode: REQUIRED
+  name: event_type
+  type: STRING
+- mode: REQUIRED
+  name: country
+  type: STRING
+deletion_protection: false

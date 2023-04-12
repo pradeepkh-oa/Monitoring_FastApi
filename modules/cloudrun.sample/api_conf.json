@@ -1,0 +1,7 @@
+{
+    "api_name": "global-it4it-btdp-test",
+    "api_basepath": "/global/it4it/v1/btdptest",
+    "api_type": "system",
+    "custom_error_identifier": "message",
+    "versions": ["v1"]
+}

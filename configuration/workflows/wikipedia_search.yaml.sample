@@ -1,0 +1,46 @@
+# This workflow makes a search through the open Wikipedia API.
+# Args:
+#   search_value (str): the word to search. Defaults to "Tuesday".
+# Returns:
+#   Dict[str, any]: the execution details of the triggered workflow.
+main:
+    params: [args]
+    steps:
+    - initialize:
+        assign:
+            - search_value: $${default(map.get(args, "search_value"), "Tuesday")}
+
+    - log_start_search:
+        call: sys.log
+        args:
+            text: '$${"Search Wikipedia articles related to: " + search_value}'
+
+    - make_wikipedia_search:
+        call: http_request_with_retries
+        args:
+            method: GET
+            url: https://en.wikipedia.org/w/api.php
+            auth: null  # no auth
+            query:
+                action: query
+                list: search
+                format: json
+                utf8: x
+                srsearch: $${search_value}
+                srlimit: 10
+        result: wiki_result
+
+    - define_results:
+        assign:
+          - results: []
+    - loop_over_list:
+        for:
+          value: item
+          in: $${wiki_result.body["query"]["search"]}
+          steps:
+            - append_item_to_results:
+                assign:
+                  - results: $${list.concat(results, item["title"])}
+
+    - output:
+        return: $${results}

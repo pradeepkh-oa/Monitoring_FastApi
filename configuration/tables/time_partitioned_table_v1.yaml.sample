@@ -1,0 +1,15 @@
+table_id: time_partitioned_table # Name of the table, becomes <table_id>_<version> when deployed.
+dataset_id: sampledataset # Name of the dataset file to create the table into.
+description: Example of time partitioned table
+version: 1 # Version of the table, important to avoid overwriting previous versions of the table.
+time_partitioning: # Time partitioning configuration.
+  type: "DAY"
+  field: "day"
+schema: # Schema of the table.
+- mode: REQUIRED
+  name: id
+  type: STRING
+- mode: REQUIRED
+  name: day
+  type: DATE
+  description: Insertion day

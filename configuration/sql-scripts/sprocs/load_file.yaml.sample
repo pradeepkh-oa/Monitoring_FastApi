@@ -1,0 +1,24 @@
+# This sample sprocs loads a CSV file into a given table of the "dataset" dataset.
+# This sample requires the following resources to be deploy:
+# - dataset "datasetprv"
+routine_id: load_file # Name of the procedure
+dataset_id: datasetprv # Name of the dataset file to create the sproc into.
+description: |-
+  Sproc to load a file into a table.
+definition_body: |- # Body of the procedure, stored in the yaml file.
+  BEGIN
+    EXECUTE IMMEDIATE FORMAT("""
+    LOAD DATA INTO %s
+    FROM FILES(
+      format='CSV',
+      uris = ["%s"]
+      );
+    """, table, file);
+  END;
+arguments:
+  - name : "table"
+    data_type : |-
+      {"typeKind" :  "STRING"}
+  - name : "file"
+    data_type : |-
+      {"typeKind" :  "STRING"}

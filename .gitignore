@@ -1,0 +1,77 @@
+# ======================================================================================== #
+#     ___ _ _     ___
+#    / __(_) |_  |_ _|__ _ _ _  ___ _ _ ___
+#   | (_ | |  _|  | |/ _` | ' \/ _ \ '_/ -_)
+#    \___|_|\__| |___\__, |_||_\___/_| \___|
+#                    |___/
+# ======================================================================================== #
+# -- IDE or system folders
+.idea
+.vscode
+.DS_Store
+
+# -- sandbox environments
+environments/[a-z][a-z][a-z].json
+
+# -- test reports
+dependency-check-junit.xml
+dependency-check-report.html
+pytest-report.xml
+coverage.xml
+htmlcov
+.coverage
+.coverage.*
+.pytest_cache
+.mypy_cache
+
+# -- terraform local states
+.terraform
+.terraform.lock.hcl
+terraform.tfvars*
+tfplan*
+env.json
+terraform.tfstate
+.iac-env
+
+# -- versioning files
+.latest_framework
+.terraform-version
+.python-version
+
+# -- installations
+__pycache__
+.env
+.venv
+*.pyc
+requirements-test.txt
+node_modules
+
+# -- tmp build files
+revision
+hash
+build
+dist
+*egg*
+
+creds.json
+deploy.json
+payload.json
+*apigee_deploy_payload.json
+*apigee_deploy_response_payload.json
+function*.zip
+
+.config-module
+
+all.sql
+last.built.gcr
+*.x.c
+pgpass
+sql.sh
+modules/data-integration/sample.sql
+modules/**/cloudbuild*.yaml
+
+cloudbuild-cicd.yaml
+cloudbuild.yaml
+!*/cloudbuild.yaml
+
+setup/cicd/*.json

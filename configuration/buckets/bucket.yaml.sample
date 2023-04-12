@@ -1,0 +1,8 @@
+# The name of the bucket is generated from the file.
+# It becomes <app_name>_gcs_<filename>_<location>_<env>.
+# This sample does not require any resource to be deployed.
+location: EU # Location of the bucket.
+expiration_in_days: 10
+# notification: # Defined if a notification should be sent when a file is dropped into the bucket.
+#   topic_name: dataacademy-ps-test-dv
+#   topic_project: ${project}

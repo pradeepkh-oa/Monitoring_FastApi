@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+echo "This script should only be ran once to move the base iac to the new core module."
+echo "If you did any change to your iac, you will need to change the script or update the state manually."
+read -p "Do you want to update your terraform state? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+    terraform state list | while IFS= read -r line;
+    do
+        echo "Moving the Terraform resources in the state."
+        terraform state mv "$line" "module.core.$line"
+    done
+else
+    echo "Terraform state update was canceled."
+fi

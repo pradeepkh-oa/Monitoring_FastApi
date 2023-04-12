@@ -1,0 +1,42 @@
+---
+- name: 40_bq-load
+  config_regex: "^gs://${example_bucket}/<prefix>_[0-9]{14}\\.json"
+  action_type: bq_load
+  next_step_id: "example01_v1_load" # allows this step to be referenced with 'config_regex'
+  # parameters
+  bq_load_params:
+    billing_project: ${project}
+    project: ${project} # btdpback's if missing
+    dataset: ${example_dataset}
+    table: example01_v1
+    schema: >
+      [
+        {"name": "observation_datetime", "type": "DATETIME", "mode": "REQUIRED"},
+        {"name": "weather",              "type": "FLOAT64",  "mode": "REQUIRED"},
+        {"name": "temperature",          "type": "FLOAT64",  "mode": "NULLABLE"}
+      ]
+    file_type: json
+
+- name: 50_sql-transfo
+  config_regex: "^bq://example01_v1_load$" # allows this step to be referenced with 'config_regex'
+  action_type: sql_transfo
+  next_step_id: aggregated_example01_v1_end
+  # parameters
+  sql_transformation_params:
+    billing_project: ${project}
+    project: ${project}
+    dataset: ${example_dataset}
+    table: aggregated_example01_v1
+    job_priority: "batch" # or 'interactive' (lowercase)
+    sql: >
+      SELECT
+        DATE(observation_datetime)                     AS observation_date,
+        APPROX_TOP_COUNT(weather, 1)[OFFSET(0)].value  AS most_frequent_weather,
+        MAX(temperature)                               AS max_temperature,
+      FROM `{project}.{example_dataset}.example_v1`
+      GROUP BY
+        DATE(observation_datetime)
+
+- name: 99_end
+  config_regex: "^bq://aggregated_example01_v1_end$"
+  action_type: end

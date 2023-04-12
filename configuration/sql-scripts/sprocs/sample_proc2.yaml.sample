@@ -1,0 +1,11 @@
+# This procedure doesn't contain a definition_body, so it will look for the
+# sample_proc2.sql file instead.
+routine_id: sample_proc2 # Name of the procedure
+dataset_id: sampledataset # Name of the dataset file to create the view into.
+description: |-
+  A stored procedure sample.
+  This procedure concatenate a generated UUID to a string prefix.
+arguments:
+  - name : "prefix"
+    data_type : |-
+      {"typeKind" :  "STRING"}

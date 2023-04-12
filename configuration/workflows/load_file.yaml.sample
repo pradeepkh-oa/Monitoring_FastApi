@@ -1,0 +1,43 @@
+# This sample workflow should be called through the Data Transmission pipeline
+# The parameters are expected to be coming from a bucket event
+# It will load the received file into a table and do all the proper logging.
+# See https://confluence.e-loreal.com/display/BTDP/4.4.6.1+File+integration+pipeline
+# This sample requires the following resources to be deploy:
+# - dataset "datasetprv"
+# - table "table_v1"
+# - sproc "load_file"
+# - eventarc "loadfile"
+main:
+    params: [args]
+    steps:
+    - init_execution_id:
+        call: generate_execution_id
+        args:
+          execution_id: $${map.get(args, ["json", "exec_id"])}
+        result: execution_id
+
+    - decode_data:
+        assign:
+          - tx_data: $${json.decode(text.decode(base64.decode(args.data.message.data)))}
+
+    - set_data_variables:
+        assign:
+          - file_uri: $${tx_data.file_uri}
+          - execution_id: $${tx_data.execution_id}
+
+    - load_file:
+        call: bq_job_sproc
+        args:
+          sproc: load_file
+          parameters:
+            - ${datasets["datasetprv"].dataset_id}.${tables["table_v1"].table_id}
+            - $${file_uri}
+          execution_id: $${execution_id}
+          flow_step: 10_load_file
+        result: job_result
+
+    # Log the end of the workflow.
+    - end_workflow:
+        call: end_workflow
+        args:
+          execution_id: $${execution_id}

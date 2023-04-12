@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+
+# Disabled the pipefail to be able to manage error messages
+set -euo pipefail;
+
+# -- < Global variables > --
+declare -r SUCCESS=0
+declare -r FAILURE=1
+
+declare -r BASE_DIR=$(dirname $0)
+
+source "${BASE_DIR}/common/logs.sh"
+source "${BASE_DIR}/common/errors.sh"
+
+# ---------------------------------------------------------------------------------------
+# -- Description --
+#
+# This function displays the usage of the current script and exits it.
+#
+# ---------------------------------------------------------------------------------------
+function usage()
+{
+    >&2 cat <<EOM
+NAME
+    $(basename $0) - This script updates the framework to the latest version.
+
+SYNOPSIS
+    $(basename $0) [-y yes] [-h help]
+
+FLAGS
+    -y, --yes       OPTIONAL    automatically accept the update prompt
+    -h, --help      OPTIONAL    display this help and exit
+
+NOTA BENE
+    All flags uses the '=' syntax to pass in the flag value
+
+EXAMPLES
+    \'$(basename $0)\'
+
+    This will check for update and ask you if you want to update if needed.
+
+    \'$(basename $0) -y\'
+
+    This will check for update and automatically accept the update prompt.
+END -- usage
+EOM
+
+    exit ${FAILURE}
+}
+
+
+# ---------------------------------------------------------------------------------------
+# -- Description --
+#
+# Parameters:
+#   in:
+#     $@    the remaining command line arguments
+#
+# ---------------------------------------------------------------------------------------
+function process_params()
+{
+    # No params to process if there is no parameter
+    if [[ $# -eq 0 ]]; then
+        return
+    fi
+
+    # the command line arguments passed to the script
+    local arguments=${@}
+
+    while (( $# )); do
+        arg="$1"
+        case "${arg}" in
+            -h|--help)
+                usage
+                exit ${FAILURE}
+                ;;
+            *)
+                log_failure "Invalid argument: ${arg}"
+                exit ${FAILURE}
+                ;;
+        esac
+    done
+}
+
+
+# ---------------------------------------------------------------------------------------
+# -- Description --
+#
+# This function runs the script and processes the command line arguments.
+#
+# Parameters:
+#   in:
+#     $@    the remaining command line arguments
+#
+# ---------------------------------------------------------------------------------------
+function run_script()
+{
+    # process the parameters and set the global variables
+    process_params "$@"
+
+    repository="git@github.com:loreal-datafactory/project-framework.git"
+
+    # Variabilize the manifest files
+    filesToRemove=".version_manifest"
+    filesToCopy=".latest_framework/.version_manifest"
+
+    # Remove potential remains of .latest_framework and clone the repository
+    rm -rf .latest_framework
+    git clone -q "${repository}" .latest_framework
+
+    # Get the latest versions
+    if [[ ! -f ".framework_version" ]]; then
+        log_info "No framework version file found. Creating one with version 1."
+        echo "1" > .framework_version
+    fi
+    current_version="$(cat .framework_version)"
+    latest_version="$(cd .latest_framework && git describe --tags --abbrev=0 2>/dev/null || echo '')"
+    if [[ "${latest_version}" == "" ]]; then
+        log_failure "Could not get the latest version of the framework."
+        exit ${FAILURE}
+    fi
+
+    # Check if versions are a number
+    if [[ ! $current_version =~ ^(v[0-9]+\.[0-9]+\.[0-9]+|[0-9]+)$ ]]; then # manages vX.Y.Z and X
+        log_error "Current framework version is not a number."
+        exit ${FAILURE}
+    fi
+    if [[ ! $latest_version =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then # manages vX.Y.Z
+        log_error "Latest framework version is not a number."
+        exit ${FAILURE}
+    fi
+
+    log_info "You are using the version $current_version of the framework."
+    log_info "The latest version available is $latest_version."
+
+    # Check if the current version is older than the latest version
+    oldest_version=$(echo "${latest_version} ${current_version}" | tr " " "\n" | sort -V | head -n 1)
+    if [ "${oldest_version}" = "${current_version}" ] && [ "${current_version}" != "${latest_version}" ]
+    then
+        read -p "Do you want to update your project? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]
+        then
+            # Replace the files
+            cat "${filesToRemove}" | while read file;
+            do
+                rm -rf "${file}"
+            done
+            cat "${filesToCopy}" | while read file;
+            do
+                mkdir -p "$(dirname "${file}")"
+                cp -r ".latest_framework/${file}" "${file}"
+            done
+
+            # Run the version scripts
+            tags=`git tag --list -n1 --format '%(refname:strip=2)'`
+            for tag in $tags
+            do
+                echo "Checking ${tag}"
+                if [[ "$(echo "${tag} ${current_version}" | tr " " "\n" | sort -V | head -n 1)" != "${tag}" ]]
+                then
+                    echo "Checking ${tag}.sh file"
+                    if [ -x ".latest_framework/.update_scripts/${tag}.sh" ]; then
+                        echo "launching ${tag}.sh file"
+                        ".latest_framework/.update_scripts/${tag}.sh"
+                    fi
+                fi
+            done
+
+            # Update the version file
+            echo "$latest_version" > .framework_version
+        else
+            log_info "Not updating."
+        fi
+    else
+        log_info "You are using the latest version of the framework."
+    fi
+
+    rm -rf .latest_framework
+}
+
+
+# ---------------------------------------------------------------------------------------
+# -- Description --
+#
+# This is the main function launching the script.
+#
+# ---------------------------------------------------------------------------------------
+function main()
+{
+    if (( $# > 1 )); then
+        usage
+    fi
+
+    run_script "$@"
+}
+
+
+# -- Script execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
+then
+    main "$@"
+fi

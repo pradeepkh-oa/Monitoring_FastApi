@@ -1,0 +1,123 @@
+# ======================================================================================== #
+#     ___ _             _ _         _ _    _   _        _ _                    _    _
+#    / __| |___ _  _ __| | |__ _  _(_) |__| | | |_  ___| | |_____ __ _____ _ _| |__| |
+#   | (__| / _ \ || / _` | '_ \ || | | / _` | | ' \/ -_) | / _ \ V  V / _ \ '_| / _` |
+#    \___|_\___/\_,_\__,_|_.__/\_,_|_|_\__,_| |_||_\___|_|_\___/\_/\_/\___/_| |_\__,_|
+#
+# ======================================================================================== #
+# This build file aims to deploy a helloworld cloud run that will allow to determine what
+# is the current project's url suffix for the selected region
+# ======================================================================================== #
+steps:
+- id: create-docker
+  name: gcr.io/cloud-builders/gcloud
+  volumes:
+  - name: app
+    path: /app
+  entrypoint: bash
+  args:
+  - -c
+  - |-
+    cat >/app/Dockerfile << EOF
+    FROM python:3.8
+    COPY app.py /app/
+    WORKDIR /app
+    RUN pip install flask
+    ENTRYPOINT ["python"]
+    CMD ["app.py"]
+    EOF
+
+- id: create-app
+  name: gcr.io/cloud-builders/gcloud
+  volumes:
+  - name: app
+    path: /app
+  entrypoint: bash
+  args:
+  - -c
+  - |-
+    cat >/app/app.py << EOF
+    from flask import Flask
+    app = Flask(__name__)
+    @app.route("/")
+    def hello():
+     return "Flask inside Docker!!"
+    if __name__ == "__main__":
+     app.run(host='0.0.0.0',port=8080)
+    EOF
+  dir: /app
+
+- id: docker-build
+  name: gcr.io/cloud-builders/docker
+  volumes:
+  - name: app
+    path: /app
+  dir: /app
+  args:
+  - build
+  - -t
+  - gcr.io/$_PROJECT/hello-world
+  - .
+
+- id: docker-push
+  name: gcr.io/cloud-builders/docker
+  args:
+  - push
+  - gcr.io/$_PROJECT/hello-world
+
+- id: deploy
+  name: gcr.io/cloud-builders/gcloud
+  args:
+    - run
+    - deploy
+    - hello-world
+    - --project
+    - $_PROJECT
+    - --image
+    - gcr.io/$_PROJECT/hello-world
+    - --no-allow-unauthenticated
+    - --platform
+    - managed
+    - --region
+    - $_REGION
+
+- id: create-deploy-bucket
+  name: gcr.io/cloud-builders/gcloud
+  entrypoint: bash
+  args:
+  - -c
+  - gsutil mb -b on -l EU gs://$_DEPLOY_BUCKET && gsutil versioning set on gs://$_DEPLOY_BUCKET || true
+
+- id: get-url
+  name: gcr.io/cloud-builders/gcloud
+  entrypoint: bash
+  args:
+  - -c
+  - >
+    gcloud --project $_PROJECT run services describe
+    hello-world --region $_REGION --platform managed --format text | grep
+    status[.]url | awk -F'-' '{print $$3"-"$$4}' | awk -F'.' '{print $$1}' |
+    gsutil cp - gs://$_DEPLOY_BUCKET/cloudrun-url-suffix/$_REGION
+
+- id: remove-service
+  name: gcr.io/cloud-builders/gcloud
+  args:
+    - run
+    - services
+    - delete
+    - hello-world
+    - --quiet
+    - --project
+    - $_PROJECT
+    - --region
+    - $_REGION
+    - --platform
+    - managed
+
+- id: display
+  name: gcr.io/cloud-builders/gcloud
+  entrypoint: bash
+  args:
+  - -c
+  - >
+    gsutil cat gs://$_DEPLOY_BUCKET/cloudrun-url-suffix/$_REGION

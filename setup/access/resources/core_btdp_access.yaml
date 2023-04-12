@@ -1,0 +1,36 @@
+# ---------------------------------------------------------------------------------------- #
+# -- < Provided limited access to external members > --
+# ---------------------------------------------------------------------------------------- #
+# This file can be split in smaller bits if needed. All YAML files within folder are
+# searched recursively and loaded as configs.
+# ---------------------------------------------------------------------------------------- #
+
+# -- Access required to perform any flow or flow action (defined in iac/configinterface)
+# N.B. These roles should be redefined at resource level to limit access
+serviceAccount:btdp-sa-dataintegration-pd@itg-btdpback-gbl-ww-pd.iam.gserviceaccount.com:
+  project:
+    # bq_load, check, sql_transfo
+    - bigquery.dataEditor
+    - bigquery.jobUser
+    # url_transfo
+    - run.invoker
+    - workflows.invoker
+    # copy
+    - storage.objectAdmin
+    - storagetransfer.user
+
+serviceAccount:btdp-sa-statemachine-pd@itg-btdpback-gbl-ww-pd.iam.gserviceaccount.com:
+  project:
+    # trigger url
+    - run.invoker
+
+serviceAccount:btdp-sa-configinterface-pd@itg-btdpback-gbl-ww-pd.iam.gserviceaccount.com:
+  project:
+    # Create notifications on bucket and link project
+    - browser
+    - storage.admin
+
+serviceAccount:btdp-sa-rulemanager-pd@itg-btdpam-gbl-ww-pd.iam.gserviceaccount.com:
+  project:
+    # Create notifications on bucket and link project
+    - bigquery.dataOwner

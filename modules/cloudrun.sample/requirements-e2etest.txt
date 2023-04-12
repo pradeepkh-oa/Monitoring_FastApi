@@ -1,0 +1,2 @@
+# (optional) extra requirements for e2e-tests not to install in Docker image.
+# This should not be needed most of the time

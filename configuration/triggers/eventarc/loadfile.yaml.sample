@@ -1,0 +1,4 @@
+# EventArc trigger to call a workflow
+# This sample requires the following resources to be deploy:
+# - workflow "load_file"
+workflow: load_file # filename of the workflow

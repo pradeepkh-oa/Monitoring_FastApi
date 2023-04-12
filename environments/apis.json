@@ -1,0 +1,6 @@
+{
+  "apigeedeployer": "https://api.loreal.net/global/it4it/btdp-apigeedeployer",
+  "accessmanagement": "https://api.loreal.net/global/it4it/btdp-rulemanager",
+  "configinterface": "https://api.loreal.net/global/it4it/btdp-configinterface",
+  "dataextraction": "https://api.loreal.net/global/it4it/btdp-dataextraction"
+}

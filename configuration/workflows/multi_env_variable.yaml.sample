@@ -1,0 +1,14 @@
+main:
+    params: [args]
+    steps:
+    - init:
+        assign:
+          # Define a variable with the target environment for the SDDS
+          # The dictionary is defined in the variables.json file in the configuration
+          # folder.
+          # If the variable is not defined, the value for dv is used.
+          - sdds_env: ${lookup(sdds_env, project_env, sdds_env["dv"])}
+    - log_env:
+        call: sys.log
+        args:
+          text: $${sdds_env}

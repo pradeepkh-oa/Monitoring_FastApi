@@ -1,0 +1,10 @@
+# This sample requires the following resources to be deploy:
+# - dataset "datasetprv"
+# - table "table_v1"
+view_id: sample_mv # Name of the mat view, becomes <view_id>_<version> when deployed.
+dataset_id: datasetprv # Name of the dataset file to create the view into.
+description: material view sample
+version: 1 # Version of the mat view, important to avoid overwriting previous versions of the mat view.
+enableRefresh: true # Enable refresh of the mat view.
+refreshIntervalMs: 3600000 # Minimum time between two refresh of the mat view.
+query: SELECT id, count(*) as total FROM `${project}.${datasets["datasetprv"].dataset_id}.${tables["table_v1"].table_id}` GROUP BY id

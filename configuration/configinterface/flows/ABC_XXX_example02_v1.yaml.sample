@@ -1,0 +1,23 @@
+---
+- name: 20_csv_load
+  config_regex: "^gs://${example_bucket}/<prefix>_.*.csv$"
+  action_type: bq_load
+  next_step_id: ${example_bucket}_csv_load_01_end
+  bq_load_params:
+    billing_project: ${project}
+    project: ${project}
+    dataset: ${example_dataset}
+    table: example02_v1
+    file_type: csv
+    file_encoding: UTF-8
+    csv_options:
+      skip_lines: 0
+      delimiter: ;
+      quotechar: '"'
+      allow_jagged_rows: false
+      allow_quoted_newlines: false
+      insert_mode: always
+
+- name: 99_end
+  config_regex: "^bq://${example_bucket}_csv_load_01_end$"
+  action_type: end

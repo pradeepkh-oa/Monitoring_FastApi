@@ -1,0 +1,5 @@
+cloudbuild.builds.builder
+iam.serviceAccountUser
+logging.logWriter
+logging.viewer
+run.admin

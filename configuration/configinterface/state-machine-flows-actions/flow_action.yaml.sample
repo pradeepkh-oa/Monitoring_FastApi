@@ -1,0 +1,13 @@
+---
+flow_id: ABC_XXX_example01_v1_${project_env} # cf. Naming Conventions (Confluence)
+flow_step: 99_end
+state: DONE
+action_label: ABC_XXX_example01_v1
+action_method: POST
+action_url: https://workflowexecutions.googleapis.com/v1/projects/${project}/locations/${workflow_region}/workflows/${example_workflow}/executions
+trigger_condition:
+  condition_label: always_trigger_on_tuesday
+  condition_sql: >
+    SELECT *
+    FROM UNNEST([EXTRACT(DAYOFWEEK FROM CURRENT_DATE())]) AS day
+    WHERE day = 3

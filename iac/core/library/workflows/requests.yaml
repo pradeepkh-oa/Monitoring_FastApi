@@ -1,0 +1,117 @@
+# ---------------------------------------------------------------------------------------- #
+# -- < Requests > --
+# ---------------------------------------------------------------------------------------- #
+# This file contains the following functions to perform requests with retries:
+# - retry_on_errors
+# - http_request_with_retries
+
+
+# Return true if the error should be retried.
+# According to the preset conditions on tags, and the http error codes to retry
+retry_on_errors:
+  params: [e] # exception
+  steps:
+    - get_fields_with_default_vals:
+        assign:
+          - tags:    $${default(map.get(e, "tags"), [])}
+          - code:    $${default(map.get(e, "code"), 1)}
+          - message: $${default(map.get(e, "message"), "Unknown Error")}
+          - params:  $${default(map.get(e, "params"), null)}
+    - empty_params_if_null:
+        switch:
+          - condition: $${"params" == null}
+            assign:
+              - params: {}
+    - get_params_with_default_val:
+        assign:
+          - method: $${default(map.get(params, "method"), "<method>")}
+          - url:    $${default(map.get(params, "url"),    "<url>")}
+
+    - retry_conditions:
+        switch:
+          - condition: $${"TimeoutError" in tags}
+            return: false  # no retry
+          - condition: $${"AuthError" in tags}
+            call: pass
+          - condition: $${"ConnectionError" in tags}
+            call: pass
+          - condition: $${code in [401, 429, 500, 502, 503, 504]}
+            call: pass
+          - condition: true  # else
+            return: false  # no retry
+
+    - log_retry_message:
+        call: sys.log
+        args:
+          text: '$${"Retrying " + method + " request on " + url + ": " + list_join(tags) + ": " + message}'
+          severity: "WARNING"
+
+    - output:
+        return: true  # retry
+
+
+# Perform a signed HTTP request with retries.
+# Args:
+# - query:    Map of parameters to encode and append to URL.
+# - auth:     Authentification method for the HTTP request. Either {"type": "OIDC"}, {"type": "OAuth2"}, or null for no-auth
+# - timeout:  Duration of request in seconds. max: 1800
+http_request_with_retries:
+  params:
+    - url
+    - method: GET
+    - body: null
+    - headers: null
+    - query: null
+    - auth: null
+    - timeout: 1800
+  steps:
+    - default_headers_if_null:
+        switch:
+          - condition: $${headers == null AND method != "GET"}
+            assign:
+              - headers:
+                  Content-Type: "application/json"
+
+    - error_if_no_auth_type:
+        switch:
+          - condition: $${auth != null AND not("type" in auth)}
+            raise: "Parameter `auth` of `http_request_with_retries` should be either null or a map containing \"type\""
+
+    - make_request_with_retries:
+        try:
+          try:
+            call: http.request
+            args:
+              method: $${method}
+              url: $${url}
+              query: $${query}  # query parameters
+              headers: $${headers}
+              body: $${body}
+              timeout: $${timeout}
+              auth: $${auth}
+            result: response
+          except:
+            as: e
+            steps:
+              - add_fields_to_error:
+                  assign:
+                    - e.params: {}
+                    - e.params.method: $${method}
+                    - e.params.url: $${url}
+              - raise_error:
+                  raise: $${e}
+        retry:
+          predicate: $${retry_on_errors}
+          max_retries: 5
+          backoff:
+            initial_delay: 2
+            max_delay: 30
+            multiplier: 2
+
+    - empty_response_body_if_missing:
+        switch:
+          - condition: $${not("body" in response) OR response.body == null}
+            assign:
+              - response.body: {}
+    - output:
+        return: $${response}

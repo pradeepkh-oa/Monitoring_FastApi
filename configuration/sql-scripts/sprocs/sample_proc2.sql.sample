@@ -1,0 +1,3 @@
+# SQL body of the sample_proc2 example procedure.
+DECLARE id STRING DEFAULT GENERATE_UUID();
+SELECT CONCAT(prefix, "-", id);

@@ -1,0 +1,342 @@
+# ---------------------------------------------------------------------------------------- #
+# -- < bigquery > --
+# ---------------------------------------------------------------------------------------- #
+# This file contains the bigquery functions:
+# - bq_job_insertion
+# - bq_copy_region
+
+
+# Run a BigQuery job with a timeout of 10 minutes.
+# You can query an external table thanks to an access token with the drive scope.
+# The function creates an async job but will wait for the end before returning
+# the status of the query.
+#
+# Params:
+# - query: the query to run
+# - execution_id: the current execution id the query is run
+# - flow_step: the current flow step. The flow id is got from current context automatically.
+# - project_id: the project to run the query on
+# - service_account: service account running the job
+# - location: the BigQuery query location
+# - scopes: list of scopes given to the token for the service account (default: ["https://www.googleapis.com/auth/cloud-platform", "https://www.googleapis.com/auth/drive"])
+bq_job_insertion:
+  params:
+    - query
+    - execution_id
+    - flow_step
+    - project_id: "${project}"
+    - service_account: "${default_service_account}"
+    - location: "${location}"
+    - scopes: null
+  steps:
+    - log_start:
+        call: sys.log
+        args:
+          text: $${"execution_id:" + execution_id + " flow_id:${flow_id} flow_step:" + flow_step + " = start query " + query}
+          severity: "DEBUG"
+
+    - start_monitoring:
+        call: send_monitoring
+        args:
+          state: "STARTED"
+          flow_step: $${flow_step}
+          execution_id: $${execution_id}
+        result: start_monitoring_result
+
+    - default_scopes:
+        switch:
+          - condition: $${scopes == null}
+            assign:
+              - scopes:
+                - "https://www.googleapis.com/auth/cloud-platform"
+                - "https://www.googleapis.com/auth/drive"
+
+    - generate_access_token:
+        call: generate_auth_token
+        args:
+          execution_id: $${execution_id}
+          service_account: $${service_account}
+          scopes: $${scopes}
+        result: access_token
+
+    - bq_jobs_insert:
+        call: http_request_with_retries
+        args:
+          method: POST
+          url: $${"https://bigquery.googleapis.com/bigquery/v2/projects/" + project_id + "/jobs"}
+          headers:
+            Authorization: $${"Bearer" + " " + access_token}
+          body:
+            configuration:
+              query:
+                query: $${query}
+                useLegacySql: false
+                useQueryCache: false
+            jobReference:
+              location: $${location}
+            # 10 minutes timeout
+            jobTimeoutMs: 600000
+        result: bigqueryResponse
+
+    - bq_job_created:
+        assign:
+        - bqJobId: $${bigqueryResponse.body.jobReference.jobId}
+        - bqJobStatus: $${bigqueryResponse.body.status}
+
+    - log_job:
+        call: sys.log
+        args:
+          text: $${"execution_id:" + execution_id + " flow_id:${flow_id} flow_step:" + flow_step + " = job created " + bqJobId}
+          severity: "DEBUG"
+
+    - check_condition:
+        switch:
+          - condition: $${"errorResult" in bqJobStatus}
+            next: exit_fail
+          - condition: $${bqJobStatus.state != "DONE"}
+            next: iterate
+        next: exit_success
+
+    - iterate:
+        steps:
+          - sleep10s:
+              call: sys.sleep
+              args:
+                seconds: 10
+
+          - getJob:
+              call: http_request_with_retries
+              args:
+                method: GET
+                url: $${"https://bigquery.googleapis.com/bigquery/v2/projects/" + project_id + "/jobs/"+bqJobId+"?location="+location}
+                auth:
+                  type: OAuth2
+              result: getBqJobResponse
+
+          - getStatus:
+              assign:
+              - bqJobStatus: $${getBqJobResponse.body.status}
+        next: check_condition
+
+    - exit_fail:
+        raise: $${"BigQuery job error =" + " " + bqJobStatus.errorResult.message}
+
+    - exit_success:
+        next: retrieve_call_result
+
+    - retrieve_call_result:
+        call: http_request_with_retries
+        args:
+          method: GET
+          url: $${"https://bigquery.googleapis.com/bigquery/v2/projects/" + project_id + "/queries/"+bqJobId+"?location="+location}
+          auth:
+            type: OAuth2
+        result: getQueryResultResponse
+
+    - log_end:
+        call: sys.log
+        args:
+          text: $${"execution_id:" + execution_id + " flow_id:${flow_id} flow_step:" + flow_step + " = job end " + text.decode(json.encode(getQueryResultResponse.body))}
+          severity: DEBUG
+
+    - end_monitoring:
+        call: send_monitoring
+        args:
+          state: "DONE"
+          flow_step: $${flow_step}
+          execution_id: $${execution_id}
+        result: end_monitoring_result
+
+    - return_query_response:
+        return: $${bqJobStatus.state}
+
+
+
+# Copy a dataset between region in Bigquery
+bq_copy_region:
+  params:
+    - execution_id
+    - flow_step
+    - source_dataset_id
+    - destination_dataset_id
+    - region: ${location}
+    - project: ${project}
+  steps:
+    - start_monitoring:
+        call: send_monitoring
+        args:
+          state: "STARTED"
+          execution_id: $${execution_id}
+          flow_step: $${flow_step}
+        result: start_monitoring_result
+
+    - make_dataset_transfer:
+        call: http_request_with_retries
+        args:
+          method: POST
+          auth:
+            type: OAuth2
+          body:
+            dataSourceId: cross_region_copy
+            destinationDatasetId: $${destination_dataset_id}
+            displayName: $${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
+            name: $${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
+            params:
+              source_dataset_id: $${source_dataset_id}
+          url: $${"https://bigquerydatatransfer.googleapis.com/v1/projects/" + project
+            + "/locations/" + region + "/transferConfigs"}
+        result: exportResult
+
+    - end_monitoring:
+        call: send_monitoring
+        args:
+          state: "DONE"
+          execution_id: $${execution_id}
+          flow_step: $${flow_step}
+        result: end_monitoring_result
+
+bq_job_sproc:
+  params:
+    - sproc
+    - execution_id
+    - flow_step
+    - parameters: null
+    - timeout: 600000
+    - project_id: "${project}"
+    - service_account: "${default_service_account}"
+    - location: "${location}"
+    - scopes: null
+  steps:
+    - log_start:
+        call: sys.log
+        args:
+          text: $${"execution_id:" + execution_id + " flow_id:${flow_id} flow_step:" + flow_step + " = calling sproc " + sproc}
+          severity: "DEBUG"
+
+    - start_monitoring:
+        call: send_monitoring
+        args:
+          state: "STARTED"
+          flow_step: $${flow_step}
+          execution_id: $${execution_id}
+        result: start_monitoring_result
+
+    - default_scopes:
+        switch:
+          - condition: $${scopes == null}
+            assign:
+              - scopes:
+                - "https://www.googleapis.com/auth/cloud-platform"
+                - "https://www.googleapis.com/auth/drive"
+
+    - generate_access_token:
+        call: generate_auth_token
+        args:
+          execution_id: $${execution_id}
+          service_account: $${service_account}
+          scopes: $${scopes}
+        result: access_token
+
+    - prepare_params:
+        call: list_join
+        args:
+          array: $${parameters}
+          separator: ","
+          quotes: "'"
+        result: prepared_params
+
+    - prepare_query:
+        assign:
+          - prepared_query: $${
+              "CALL `${sprocs["load_file"].reference}`(" + prepared_params + ")"}
+
+    - bq_jobs_insert:
+        call: http_request_with_retries
+        args:
+          method: POST
+          url: $${"https://bigquery.googleapis.com/bigquery/v2/projects/" + project_id + "/jobs"}
+          headers:
+            Authorization: $${"Bearer" + " " + access_token}
+          body:
+            configuration:
+              query:
+                query: $${prepared_query}
+                useLegacySql: false
+                useQueryCache: false
+            jobReference:
+              location: $${location}
+            # 10 minutes timeout
+            jobTimeoutMs: $${timeout}
+        result: bigqueryResponse
+
+    - bq_job_created:
+        assign:
+        - bqJobId: $${bigqueryResponse.body.jobReference.jobId}
+        - bqJobStatus: $${bigqueryResponse.body.status}
+
+    - log_job:
+        call: sys.log
+        args:
+          text: $${"execution_id:" + execution_id + " flow_id:${flow_id} flow_step:" + flow_step + " = job created " + bqJobId}
+          severity: "DEBUG"
+
+    - check_condition:
+        switch:
+          - condition: $${"errorResult" in bqJobStatus}
+            next: exit_fail
+          - condition: $${bqJobStatus.state != "DONE"}
+            next: iterate
+        next: exit_success
+
+    - iterate:
+        steps:
+          - sleep10s:
+              call: sys.sleep
+              args:
+                seconds: 10
+
+          - getJob:
+              call: http_request_with_retries
+              args:
+                method: GET
+                url: $${"https://bigquery.googleapis.com/bigquery/v2/projects/" + project_id + "/jobs/"+bqJobId+"?location="+location}
+                auth:
+                  type: OAuth2
+              result: getBqJobResponse
+
+          - getStatus:
+              assign:
+              - bqJobStatus: $${getBqJobResponse.body.status}
+        next: check_condition
+
+    - exit_fail:
+        raise: $${"BigQuery job error =" + " " + bqJobStatus.errorResult.message}
+
+    - exit_success:
+        next: retrieve_call_result
+
+    - retrieve_call_result:
+        call: http_request_with_retries
+        args:
+          method: GET
+          url: $${"https://bigquery.googleapis.com/bigquery/v2/projects/" + project_id + "/queries/"+bqJobId+"?location="+location}
+          auth:
+            type: OAuth2
+        result: getQueryResultResponse
+
+    - log_end:
+        call: sys.log
+        args:
+          text: $${"execution_id:" + execution_id + " flow_id:${flow_id} flow_step:" + flow_step + " = job end " + text.decode(json.encode(getQueryResultResponse.body))}
+          severity: DEBUG
+
+    - end_monitoring:
+        call: send_monitoring
+        args:
+          state: "DONE"
+          flow_step: $${flow_step}
+          execution_id: $${execution_id}
+        result: end_monitoring_result
+
+    - return_query_response:
+        return: $${bqJobStatus.state}

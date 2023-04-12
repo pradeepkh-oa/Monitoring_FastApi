@@ -1,0 +1,339 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly config_file_default='.config-module'
+readonly module_name_regex="^[\-a-z0-9]{5,15}"
+readonly repository_dir=$(dirname $(dirname $0))
+readonly script_name=$(basename $0)
+
+# -- padding to decorate messages
+PADDING=$(printf ".%.s" $(seq 1 90))
+
+# -- the color used
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+LIGHTBLUE='\033[1;34m'
+DARKGRAY='\033[1;30m'
+NOCOLOR='\033[0m'
+ORANGE='\033[0;33m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+
+function log_error() {
+    local message="$1"
+
+    printf "${RED}[error]${NOCOLOR} %s %s\n" \
+                    "${PADDING:${#message}}" "${message}"
+}
+
+function log_failure() {
+    local message="$1"
+    local status="[FAILED]"
+
+    printf "${RED}[error]${NOCOLOR} %s %s ${RED}%s${NOCOLOR}\n" \
+                    "${message}" "${PADDING:${#message}+${#status}+1}" "${status}"
+}
+
+function log_success() {
+    local message="$1"
+    local status="[PASSED]"
+
+    printf "${BLUE}[info ]${NOCOLOR} %s %s ${GREEN}%s${NOCOLOR}\n" \
+                    "${message}" "${PADDING:${#message}+${#status}+1}" "${status}"
+}
+
+function log_info() {
+    local message="$1"
+
+    printf "${BLUE}[info ]${NOCOLOR} %s %s\n" \
+                    "${PADDING:${#message}}" "${message}"
+}
+
+function config() {
+    readonly config_file_path="${repository_dir}/bin/modules/$(basename $(dirname ${module_path:-""}))/${module_name:-""}"
+    readonly config_file="${config_file_path}/${config_file_default}"
+}
+
+# create a module from python template
+function module_python() {
+    local readonly modules_path="$1"
+
+    if [[ ${module_type} == "gae" ]]; then
+        log_info "creation from template module-oauth2-tpl-gae"
+        cp -r "${modules_path}/module-oauth2-tpl-gae/." "${module_path}${module_name}"
+    else
+        case ${module_variation} in
+            "flask")
+                log_info "creation from template module-simple-tpl-gcr"
+                cp -r "${modules_path}/module-simple-tpl-gcr/." "${module_path}${module_name}"
+                ;;
+            "restx")
+                log_info "creation from template module-flask-restx-tpl-gcr"
+                cp -r "${modules_path}/module-flask-restx-tpl-gcr/." "${module_path}${module_name}"
+                ;;
+            "restx+alchemy")
+                log_info "creation from template module-flask-restx-sqlalchemy-tpl-gcr"
+                cp -r "${modules_path}/module-flask-restx-sqlalchemy-tpl-gcr/." "${module_path}${module_name}"
+                ;;
+            *)
+                log_info "creation from template module-oauth2-tpl-gcr"
+                cp -r "${modules_path}/module-oauth2-tpl-gcr/." "${module_path}${module_name}"
+                ;;
+        esac
+    fi
+}
+
+# create a module
+function create_module_template() {
+    local readonly modules_path="$1"
+
+    mkdir -p "${module_path}${module_name}"
+    module_python "${modules_path}"
+}
+
+
+#load config
+function load_config() {
+    if [[ -e "${config_file_name}" ]]; then
+        source ${config_file_name}
+    else
+        log_error "No config file '${config_file_name}'"
+        log_failure "Check the name of your config file"
+        exit 1
+    fi
+}
+
+
+# help usage
+function script_usage() {
+    cat << EOF
+NAME
+
+${script_name} [OPTIONS] ...
+
+OPTIONS:
+    -h,--help : show this help text
+    -t,--type : type of the module (gae| gcr)
+    -v,--variation : variation of the module (flask|restx|restx+alchemy|oauth2)
+    -i,--interactive : force interactive mode
+    -f,--file : use a config file. When creating a module a configuration file (.config-module) is created in the prject-template/bin/modules/<project-name>/<module-name> directory
+    --clean : delete the config file (.config-module)
+    --clean_all: delete all config files
+    --delete : delete a module ###WARNING: This command removes the selected folder. Be careful to have taken the right path
+
+EXAMPLES:
+    ${script_name} modules/my-module -t gcr -v flask
+        #This commande create a module named 'my-module' in the 'modules' subfolder, with type gcr and variation flask
+    ${script_name} -f .config-module
+        #This commande create a module using the configuration in the .config-module file
+    ${script_name} modules/my-module -f .config-module
+        #This commande create a module using the configuration in the .config-module file by overwriting the name of the module
+    ${script_name} modules/my-module --clean
+        #This commande delete the config file for the module name 'my-module' of you current project
+    ${script_name} modules/my-module --delete
+        #WARNING: This commande delete the module (folder) name 'my-module' in the subfolder 'modules'
+EOF
+}
+
+# commande line parameter
+function parse_params() {
+    module_name_path_param=()
+    while [[ $# -gt 0 ]]
+    do
+    key="$1"; shift;
+    case $key in
+        -t|--type)
+            module_type_param="$1";
+            shift
+            ;;
+        -v|--variation)
+            module_variation_param="$1";
+            shift
+            ;;
+        -i|--interactive)
+            interactive=true
+            ;;
+        -f|--file)
+            config_file_name="$1";
+            shift
+            ;;
+        -h|--help)
+            script_usage;
+            exit
+            ;;
+        --clean)
+            clean=true
+            ;;
+        --clean_all)
+            clean_all=true
+            ;;
+        --delete)
+            delete=true
+            ;;
+        *)
+            module_name_path_param+=("$key")
+            ;;
+    esac
+    done
+
+    if [[ ${#module_name_path_param[@]} > 1 && ! -z ${clean_all:-""} ]]; then
+        log_error "Bad number of argument"
+        log_failure "It must be one module name"
+        exit 1
+    elif [[ ${#module_name_path_param[@]} == 1 ]]; then
+        module_name_param=$(basename ${module_name_path_param[0]})
+        module_path_param=$(readlink -f $(dirname ${module_name_path_param[0]}))"/"
+    fi
+}
+
+# interactive workflow
+function interactive() {
+    if [[ -z ${module_name:-""} || ! -z ${interactive:-""} ]]; then
+        log_info "name of your custom module:"
+        read -r
+        module_name_path_param="${REPLY}"
+        module_name=$(basename ${module_name_path_param[0]})
+        module_path=$(readlink -f $(dirname ${module_name_path_param[0]}))"/"
+    fi
+    if [[ -z ${module_type:-""} || ! -z ${interactive:-""} ]]; then
+        log_info "type of your custom module (gae|gcr):"
+        read -r
+        module_type="${REPLY}"
+    fi
+    if [[ ( -z ${module_variation:-""} || ! -z ${interactive:-""} ) && ${module_type:-""} == "gcr" ]]; then
+        log_info "variation of your custom module (flask|restx|restx+alchemy|oauth2):"
+        read -r
+        module_variation="${REPLY}"
+    elif [[ -z ${module_variation:-""} || ! -z ${interactive:-""} ]]; then
+        module_variation="oauth2"
+    fi
+}
+
+# create config file
+function create_config() {
+    mkdir -p "${config_file_path}"
+    cat <<EOM > "${config_file}"
+module_name="${module_name}"
+module_path="${module_path}"
+module_type="${module_type}"
+module_variation="${module_variation}"
+EOM
+
+}
+
+# checks if the configuration is correctly set
+function check_config() {
+    if [[ ! ${module_name} =~ ^[\-a-z0-9]{5,15} ]]; then
+        log_error "Module name is not compliant: '${module_name}'"
+        log_error "The pattern is: ${module_name_regex}"
+        log_failure "Check module name"
+        exit 1
+    fi
+    if [[ ! $(basename ${module_path}) == "modules" ]]; then
+        log_error "The module is not in the right directory"
+        log_error "The module must be in the 'modules' directory"
+        log_failure "Check module path"
+        log_failure "Try to execute the command in the 'modules' directory"
+        log_failure "Or try to execute the command: module <project_path>/modules/${module_name}"
+        exit 1
+    fi
+    if [[ ${module_type} == "gae" ]]; then
+        if [[ ! ${module_variation} == "oauth2" ]]; then
+            log_error "Module variation does not exist: '${module_variation}'"
+            log_error "It must be: oauth2"
+            log_failure "Check module variation"
+            exit 1
+        fi
+    elif [[ ${module_type} == "gcr" ]]; then
+        case ${module_variation} in
+            "flask"|"restx"|"restx+alchemy"|"oauth2")
+                ;;
+            *)
+                log_error "Module variation does not exist: '${module_variation}'"
+                log_error "It must be: flask, restx, restx+alchemy or oauth2"
+                log_failure "Check module variation"
+                exit 1
+                ;;
+        esac
+    else
+        log_error "Module type does not exist: '${module_type}'"
+        log_error "It must be: gae or gcr"
+        log_failure "Check module type"
+        exit 1
+    fi
+}
+
+# delete the config file
+function clean_config() {
+    rm ${config_file}
+}
+
+# delete all config files
+function clean_all_config() {
+    rm -r "${repository_dir}/bin/modules"
+}
+
+# delete a module
+function delete_module() {
+    rm -r ${module_path}${module_name}
+}
+
+function delete_clean() {
+    if [[ ! -z ${clean:-""} ]]; then
+        clean_config
+        log_success "config file '${config_file}' is deleted"
+    fi
+    if [[ ! -z ${clean_all:-""} ]]; then
+        clean_all_config
+        log_success "all config files are deleted"
+    fi
+    if [[ ! -z ${delete:-""} ]]; then
+        delete_module
+        log_success "module '${module_name}' is deleted"
+    fi
+
+    exit 0
+}
+
+# overload the config file
+function overload() {
+    if [[ ! -z ${module_name_param:-""} ]]; then
+        module_name=${module_name_param}
+    fi
+    if [[ ! -z ${module_path_param:-""} ]]; then
+        module_path=${module_path_param}
+    fi
+    if [[ ! -z ${module_type_param:-""} ]]; then
+        module_type=${module_type_param}
+    fi
+    if [[ ! -z ${module_variation_param:-""} ]]; then
+        module_variation=${module_variation_param}
+    fi
+}
+
+function main() {
+    parse_params "$@"
+
+    local readonly modules_path="${repository_dir}/modules"
+
+    if [[ ! -z ${config_file_name:-""} ]]; then
+        load_config
+    fi
+    overload
+    if [[ -z ${clean:-""} && -z ${delete:-""} && -z ${clean_all:-""} ]]; then
+        interactive
+    fi
+    config
+    if [[ ! -z ${clean:-""} || ! -z ${delete:-""} || ! -z ${clean_all:-""} ]]; then
+        delete_clean
+    fi
+    check_config
+    create_config
+    create_module_template "${modules_path}"
+
+    log_success "module created"
+}
+
+main "$@"

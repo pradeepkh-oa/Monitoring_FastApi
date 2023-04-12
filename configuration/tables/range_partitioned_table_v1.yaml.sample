@@ -1,0 +1,17 @@
+table_id: range_partitioned_table # Name of the table, becomes <table_id>_<version> when deployed.
+dataset_id: dsdemo # Name of the dataset file to create the table into.
+description: Example of range partitioned table
+version: 1 # Version of the table, important to avoid overwriting previous versions of the table.
+range_partitioning: # Range partitioning configuration.
+  field: number
+  start: 0
+  end: 100
+  interval: 5
+schema: # Schema of the table
+- mode: REQUIRED
+  name: id
+  type: STRING
+- mode: REQUIRED
+  name: number
+  type: INT64
+  description: number for the range

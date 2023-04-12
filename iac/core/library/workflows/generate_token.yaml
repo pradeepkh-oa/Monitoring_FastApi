@@ -1,0 +1,72 @@
+# ---------------------------------------------------------------------------------------- #
+# -- < Generate auth token > --
+# ---------------------------------------------------------------------------------------- #
+# Generate an OIDC (id_token) or OAuth2 (access_token) token
+# for a given service-account.
+# The Workflows SA needs the Token Creator role on the SA to
+# impersonate otherwise it won't work.
+#
+# Params:
+# - service_account: service account that you want to create a token of
+# - token_type: type of token requested. "id_token" or "access_token"
+# - scopes: list of scopes the token will have (ex: https://www.googleapis.com/auth/cloud-platform)
+generate_auth_token:
+  params:
+    - execution_id: "N/C"
+    - service_account: "${default_service_account}"
+    - token_type: "access_token"
+    - scopes: null
+  steps:
+    - initialize:
+        assign:
+          - service_account: $${service_account}
+          - token_type: $${token_type}
+          - scopes: $${scopes}
+    - default_scopes:
+        switch:
+          - condition: $${scopes == null}
+            assign:
+            - scopes:
+              - "https://www.googleapis.com/auth/cloud-platform"
+    - log_start:
+        call: sys.log
+        args:
+          text: $${"execution_id:" + execution_id + " flow_id:${flow_id} = start workflow to generate token type " + token_type + " for the SA " + service_account}
+          severity: DEBUG
+    - generate_token_type:
+        switch:
+          - condition: $${token_type == "id_token"}
+            next: generate_id_token
+          - condition: $${token_type == "access_token"}
+            next: generate_access_token
+        next: error_message
+    - generate_id_token:
+        steps:
+          - generate_id_token_response:
+              call: http_request_with_retries
+              args:
+                method: POST
+                url: $${"https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/" + service_account + ":generateIdToken"}
+                body:
+                  scope: $${scopes}
+                auth:
+                  type: OIDC
+              result: idTokenResponse
+          - return_token_oidc:
+              return: $${idTokenResponse.body.token}
+    - generate_access_token:
+        steps:
+          - generate_access_token_response:
+              call: http_request_with_retries
+              args:
+                method: POST
+                url: $${"https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/" + service_account + ":generateAccessToken"}
+                body:
+                  scope: $${scopes}
+                auth:
+                  type: OAuth2
+              result: accessTokenResponse
+          - return_token_oauth2:
+              return: $${accessTokenResponse.body.accessToken}
+    - error_message:
+        return: "It's not valid token_type"

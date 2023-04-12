@@ -1,0 +1,14 @@
+# Example file to show what a DLS subscription config looks like.
+# The case-insensitive group is used as id instead of the filename
+rule_id: "example_rule_${project_env}"
+datasets: # each item can be either <dataset> or <project>.<dataset>
+  - <dataset_0_to_authorize_group_on>
+  - <dataset_1_to_authorize_group_on>
+  - '${datasets["sampledataset"].dataset_id}'
+payload:
+  # CAUTION: The group must already exist and its email must have the exact same letter casing.
+  # Else, some Google APIs may produce incoherent results for Terraform
+  group: "dummy-group@loreal.com"
+  scope: "DEMO"
+  # Optional: set owner group whose members only are allowed to edit or delete the subscription
+  owner: "IT-GLOBAL-GCP-BTDP_USR_TEST@loreal.com"

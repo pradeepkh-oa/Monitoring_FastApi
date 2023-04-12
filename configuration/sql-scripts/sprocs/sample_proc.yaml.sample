@@ -1,0 +1,14 @@
+routine_id: sample_sproc # Name of the procedure
+dataset_id: sampledataset # Name of the dataset file to create the view into.
+description: |-
+  A stored procedure sample.
+  This procedure concatenate a generated UUID to a string prefix.
+definition_body: |- # Body of the procedure, stored in the yaml file.
+  BEGIN
+    DECLARE id STRING DEFAULT GENERATE_UUID();
+    SELECT CONCAT(prefix, "-", id);
+  END;
+arguments:
+  - name : "prefix"
+    data_type : |-
+      {"typeKind" :  "STRING"}

@@ -1,0 +1,119 @@
+# ---------------------------------------------------------------------------------------- #
+# -- < Monitoring > --
+# ---------------------------------------------------------------------------------------- #
+# This file contains the monitoring functions:
+# - generate_execution_id
+# - start_monitoring
+# - end_monitoring
+
+
+# Generate an execution_id, through the monitoring interface module.
+# Your workflows' service account needs to have access to the monitoring-interface module.
+# For this purpose, you need to add your SA to the group !!!GROUP TO ADD HERE!!!
+#
+# Params:
+# - flow_id: id of the flow to request the exec_id for
+# - file_name: name of the file to request the exec_id for
+generate_execution_id:
+  params: [execution_id: null, file_name: "gs://nofile"]
+  steps:
+    - log_start:
+        call: sys.log
+        args:
+          text: $${"flow_id:${flow_id};file_name:" + file_name + ";env:${project_env} start generate_execution_id"}
+          severity: "DEBUG"
+
+    - check_execution_id:
+        switch:
+          - condition: $${execution_id != null}
+            next: end_generate
+
+    - generate_access_token:
+        call: generate_auth_token
+        result: access_token
+    - generate_execution_id:
+        call: http_request_with_retries
+        args:
+          method: POST
+          url: "https://api.loreal.net/global/it4it/btdp-monitoringinterface/v1/executions"
+          headers:
+            Authorization: $${"Bearer " + access_token}
+          body:
+            flow_id: "${flow_id}"
+            file_name: $${file_name}
+        result: execution_resp
+
+    - log_end:
+        call: sys.log
+        args:
+          text: $${"execution_id:" + execution_resp.body.data.execution_id + " flow_id:${flow_id} = execution_id validated"}
+          severity: "DEBUG"
+
+    - end_generate:
+        return: $${execution_resp.body.data.execution_id}
+
+# ### start_monitoring ###
+# Send the STARTED message to the monitoring topic.
+# The service account using the workflows need to have access to
+# the `projects/itg-btdpback-gbl-ww-<env>/topics/btdp-topic-monitoring-<env>` topic.
+#
+# Params:
+# - flow_step: step of the started flow. flow_id is calculated from context.
+# - execution_id: execution_id generated for this flow
+# - state should be STARTED before doing an action, DONE after. ERROR can be used to log errors.
+# - comment: should be use particularly to define the ERROR.
+# - source_type: should be use for additional information when STARTED an action.
+# - source_type_info: complete the source_type by additional information.
+# - size: when an information of size want to be used. Particularly interesting for file message.
+# - lines: when an information of number of lines want to be used. Particularly interesting for
+#   file message.
+send_monitoring:
+  params:
+    - flow_step
+    - execution_id
+    - state
+    - comment: ""
+    - source_type: "N/C"
+    - source_type_info: ""
+    - size: 0
+    - lines: 0
+  steps:
+    - log_monitoring:
+        call: sys.log
+        args:
+          text: $${"execution_id:" + execution_id + " flow_id:${flow_id} flow_step:" + flow_step + " = monitor state " + state}
+          severity: "DEBUG"
+    - generate_access_token:
+        call: generate_auth_token
+        args:
+          execution_id: $${execution_id}
+        result: access_token
+    - publish_monitoring:
+        call: http_request_with_retries
+        args:
+            method: POST
+            url: "https://api.loreal.net/global/it4it/btdp-monitoringinterface/v1/logs"
+            headers:
+              Authorization: $${"Bearer " + access_token}
+            body:
+              execution_id: $${execution_id}
+              flow_id: ${flow_id}
+              flow_step: $${flow_step}
+              state: $${state}
+              env: ${project_env}
+              comment: $${comment}
+              source:
+                type: $${source_type}
+                type_info: $${source_type_info}
+                size: $${size}
+                lines: $${lines}
+
+end_workflow:
+  params: [execution_id]
+  steps:
+  - end_monitoring:
+      call: send_monitoring
+      args:
+        state: "DONE"
+        flow_step: "99_end"
+        execution_id: $${execution_id}

@@ -1,0 +1,20 @@
+# The name of the scheduler is generated from the file.
+# It becomes <app_name>_sch_<filename>_<region>_<env>.
+# This sample requires the following resources to be deploy:
+# - workflow "load_file"
+schedule: "0 0 12 */2 *" # Cron expression for the scheduler.
+description: Call the sample workflow every two months
+time_zone: Europe/Paris
+http_target: # Example of http call target
+  http_method: POST
+  uri: ${workflows["load_file"].url}
+  body: '{"argument":"{}"}'
+  oauth_token:
+    service_account_email: "${app_name_short}-sa-workflows-${project_env}@${project}.iam.gserviceaccount.com"
+    scope: https://www.googleapis.com/auth/cloud-platform
+
+# This feature is not yet implemented and will be added in the future.
+# This will replace the http_target section when calling a workflow.
+# workflow:
+#   name: load_file # workflow file name
+#   # body: '{"argument":"{}"}'

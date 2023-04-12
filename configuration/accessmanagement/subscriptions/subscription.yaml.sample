@@ -1,0 +1,20 @@
+# Example file to show what a (RLS) subscription config looks like.
+# This sample requires the following resources to be deploy:
+# - dataset "datasetprv"
+# - dataset "dataset"
+# - table "table_v1"
+rule_id: "rule0_v2_pd" # This rule allows everyone to read the table.
+payload:
+  scope: "oapass"
+  source:
+    project_name: "itg-btdptst2-gbl-ww-${project_env}"
+    dataset_name: "${datasets["datasetprv"].dataset_id}"
+    table_name: "${tables["table_v1"].table_id}"
+  destination:
+    project_name: "itg-btdptst2-gbl-ww-${project_env}"
+    dataset_name: "${datasets["dataset"].dataset_id}"
+    view_name: "${tables["table_v1"].table_id}"
+#   Optional: set owner group whose members only are allowed to edit or delete the subscription
+#   owner: "IT-GLOBAL-GCP-BTDP_USR_TEST@loreal.com"
+#  placeholders: # (optional)
+#    attribute_name_in_rule: "column_name_in_source_table"

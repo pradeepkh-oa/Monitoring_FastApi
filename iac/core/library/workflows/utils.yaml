@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------- #
+# -- < Utils > --
+# ---------------------------------------------------------------------------- #
+# Empty step for convenience.
+pass:
+  steps:
+    - output:
+        return: null
+
+
+# Join a list of strings with given string separator[ and prefix].
+list_join:
+  params: [array, separator: ", ", prefix: "", quotes: ""]
+  steps:
+    - log_array:
+        call: sys.log
+        args:
+          data: $${array}
+
+    - check_if_array_null:
+        switch:
+          - condition: $${array == null}
+            return: $${prefix}
+
+    - define_seq:
+        assign:
+          - seq: $${prefix}
+    - loop_over_list:
+        try:
+            for:
+              index: idx
+              value: item
+              in: $${array}
+              steps:
+                - append_sep_to_seq:
+                    switch:
+                      - condition: $${idx > 0}
+                        assign:
+                          - seq: $${seq + separator}
+                - append_item_to_seq:
+                    assign:
+                      - seq: $${seq + quotes + string(item) + quotes}
+        except:
+            return: $${prefix + string(array)}
+
+    - output:
+        return: $${seq}

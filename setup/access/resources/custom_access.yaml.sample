@@ -1,0 +1,33 @@
+# ---------------------------------------------------------------------------------------- #
+# -- < Provided limited access to external members > --
+# ---------------------------------------------------------------------------------------- #
+# N.B. Configurations use templating to replace common variables from active environment
+# like ${project_env}, as well as custom variables defined in `variables.json`
+# ---------------------------------------------------------------------------------------- #
+
+# -- Access required to <DESCRIPTION>
+serviceAccount:${alias_app_name}-sa-<service_name>-<alias_project_env>@${alias_project}.iam.gserviceaccount.com:
+    project:
+        - <api>.<roleName1>
+        - <api>.<roleName2>
+    buckets:
+        "<bucket_id1>":
+            - storage.<roleName1>
+        "<bucket_id2>":
+            - storage.<roleName2>
+    datasets:
+        "<dataset_id>":
+            - bigquery.<roleName1>
+            - bigquery.<roleName2>
+    tables:
+        "<dataset_id>.<table_id>":
+            - bigquery.<roleName1>
+            - bigquery.<roleName2>
+    pubsub_topics:
+        "<topic_id>":
+            - pubsub.<roleName1>
+            - pubsub.<roleName2>
+    secrets:
+        "<secret_id>":
+            - secretmanager.<roleName1>
+            - secretmanager.<roleName2>

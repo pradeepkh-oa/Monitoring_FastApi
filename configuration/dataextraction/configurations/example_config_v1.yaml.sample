@@ -1,0 +1,20 @@
+# This sample requires the following resources to be deploy:
+# - dataset "datasetprv"
+# - table "table_v1"
+# If you want to test the whole chain, you'll need an API to check the callback.
+group: GROUP@loreal.com # the cloudbuild service account of your project needs to be in this group
+project_id: itg-btdptst2-gbl-ww-dv
+sql_extract: >
+ SELECT *
+ FROM `${project}.${datasets["datasetprv"].dataset_id}.${tables["table_v1"].table_id}`
+ WHERE object_date > = @param_date
+destination:
+  file_prefix: job_{job_id}/data
+  compression: false
+  format: CSV
+callback:
+  url: https://example.com
+  method: POST
+  body: '{"job_id": "{job_id}", "file_list_json": {file_list_json}}'
+  auth:
+    type: OAUTH2

@@ -1,0 +1,5 @@
+The config interface features are deprecated. For your file integration,
+you should favor the use of Data Transmission with Workflows.
+
+Here is a configuration of file integration pipeline.
+https://confluence.e-loreal.com/display/BTDP/4.4.6.1+File+integration+pipeline

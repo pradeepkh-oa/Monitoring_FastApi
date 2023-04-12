@@ -1,0 +1,22 @@
+---
+# The id is based on the filename (without extension): <filename>-<env>
+group: <AAD_GROUP>
+project_id: <GCP_BILLING_PROJECT>
+sql_prepare: <PARAMETERIZED_SQL_QUERY>
+sql_extract: <PARAMETERIZED_SQL_QUERY>
+destination:
+  file_prefix: <GCS_FILE_PREFIX>  # Placeholders must be used to make it dynamic in order not to erase previous extraction files
+  compression: true|false
+  format: CSV|JSON
+  field_delimiter: <CSV_SEPARATOR>
+  header: true|false
+  single_file: true|false
+callback:  # The callback part is optional
+  url: https://example.com
+  method: POST|GET|etc
+  body: <BODY> # Placeholders can be used to specify the path where the files got serialized in GCS
+  auth:
+    type: OIDC|OAUTH2|AAD
+    scopes: [api://<AAD_CLIENT_ID>/.default]  # Only for AAD auth type
+  headers:  # Custom headers if needed
+     key: <VALUE>

@@ -1,0 +1,11 @@
+{
+  "example_bucket": "${app_name_short}-gcs-example-${multiregion}-${project_env}",
+  "example_dataset": "${app_name_short}_ds_999_example_${multiregion}_${project_env}_tmp",
+  "example_workflow": "${app_name_short}-wkf-example-${workflow_region_id}-${project_env}",
+  "sdds_env": {
+      "dv": "qa",
+      "qa": "qa",
+      "np": "np",
+      "pd": "pd"
+  }
+}

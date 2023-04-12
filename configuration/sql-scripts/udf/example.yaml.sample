@@ -1,0 +1,17 @@
+routine_id: udf_example   # Name of the function.
+dataset_id: dsdemo        # Name of the dataset file to create the view into.
+description: |-
+  A SQL user-defined function example.
+  This function returns the sum of two numbers.
+language: SQL             # Language of the function.
+definition_body: |-       # Code of the function
+  x+y
+arguments:
+  - name : "x"
+    data_type : |-
+      {"typeKind" :  "FLOAT64"}
+  - name : "y"
+    data_type : |-
+      {"typeKind" :  "FLOAT64"}
+return_type: |-
+    {"typeKind" :  "FLOAT64"}

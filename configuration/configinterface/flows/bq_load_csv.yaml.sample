@@ -1,0 +1,33 @@
+# This file is accompagnied by the bq_load_csv.csv file that you can use to test the flow.
+# The flow will load the csv file into a BigQuery table.
+# To do so, you need to deploy the sample dataset, bucket and this flow, then copy the
+# csv file to the bucket. You will then find the data in the newly BigQuery table inside
+# the sample dataset. You cannot test this in your sandbox.
+- name: 40_bq-load
+  config_regex: "^gs://${buckets["bucket_tag"].reference}/.*[.]csv$"
+  action_type: bq_load
+  next_step_id: "example_end" # allows this step to be referenced with 'config_regex'
+  # parameters
+  bq_load_params:
+    billing_project: ${project}
+    project: ${project} # btdpback's if missing
+    dataset: "${datasets["sampledataset"].dataset_id}"
+    table: example01_v1
+    schema: >
+      [
+        {"name": "name", "type": "STRING",   "mode": "REQUIRED"},
+        {"name": "age",  "type": "INTEGER",  "mode": "REQUIRED"}
+      ]
+    file_type: csv
+    file_encoding: UTF-8
+    csv_options:
+      skip_lines: 1
+      delimiter: ;
+      quotechar: '"'
+      allow_jagged_rows: false
+      allow_quoted_newlines: false
+      insert_mode: always
+
+- name: 99_end
+  config_regex: "^bq://example_end$"
+  action_type: end

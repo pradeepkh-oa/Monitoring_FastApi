@@ -1,0 +1,7 @@
+# The name of the dataset is generated from the file.
+# It becomes <app_name>_ds_<confidentiality>_<filename>_<location>_<env>.
+# This sample does not require any resource to be deployed.
+description: This is a sample dataset for secured data using Access management.
+friendly_name: Sample Dataset
+confidentiality: c3
+deletion_protection: false

@@ -1,0 +1,28 @@
+# ======================================================================================== #
+#     ___ _ _   _        _        _      _   _             ___           __ _
+#    / __(_) |_| |_ _  _| |__    /_\  __| |_(_)___ _ _    / __|___ _ _  / _(_)__ _
+#   | (_ | |  _| ' \ || | '_ \  / _ \/ _|  _| / _ \ ' \  | (__/ _ \ ' \|  _| / _` |
+#    \___|_|\__|_||_\_,_|_.__/ /_/ \_\__|\__|_\___/_||_|  \___\___/_||_|_| |_\__, |
+#                                                                            |___/
+# ======================================================================================== #
+
+# Add 'setup' to any changes within 'setup' directory or any subfolders
+setup: "setup/**/*"
+
+# Add 'cicd' to any changes within 'cicd' and 'includes' directory or any subfolders as well as all makefiles.
+cicd: "{setup/cicd/**/*, includes/**/*, *.mk, Makefile}"
+
+# Add 'access' to any changes within 'access' directory or any subfolders
+access: "setup/access/**/*"
+
+# Add 'init' to any changes within 'init' directory or any subfolders
+init: "setup/init/**/*"
+
+# Add 'api' to any changes within 'modules' directory or any subfolders
+api: "modules/**/*"
+
+# Add 'framework_update' to any changes to the '.framework_version' file
+framework_update: ".framework_version"
+
+# Add 'documentation' to any changes within *.md files
+documentation: "**/*.md"

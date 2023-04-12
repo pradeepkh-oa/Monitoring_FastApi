@@ -1,0 +1,12 @@
+# This sample requires the following resources to be deploy:
+# - dataset "datasetprv"
+# - table "table_v1"
+view_id: sample_view # Name of the view, becomes <view_id>_<version> when deployed.
+dataset_id: datasetprv # Name of the dataset file to create the view into.
+description: demo with level 0 of dependency
+version: 1 # Version of the view, important to avoid overwriting previous versions of the view.
+level: 0 # Order of deployment for views, level 0 is the first to be deployed.
+query: SELECT * FROM `${project}.${datasets["datasetprv"].dataset_id}.${tables["table_v1"].table_id}`
+# authorized_on_datasets: # (Optional) authorize view on these datasets
+#     - dataset_ref_0
+#     - dataset_ref_0
